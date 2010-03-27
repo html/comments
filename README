@@ -1,0 +1,15 @@
+Comments
+========
+
+The idea is to have "comments contructor", a set of plugins to make comments exactly that you need with configuration as simple as posible.
+Currently there are basic comments functionality without any plugin.
+All view scripts, helpers and controller extensions are currently missing in this repository.
+
+
+Example
+=======
+
+There is no any example yet
+
+
+Copyright (c) 2010 Olexiy Zamkoviy, released under the MIT license
