@@ -1,12 +1,46 @@
 require 'test_helper'
 
 class CommentsTest < ActiveSupport::TestCase
-  # Replace this with your real tests.
+  context "ActionView::Base" do
+    context "instance" do
+      setup do
+        @view = ActionView::Base.new
+        stub(@view).protect_against_forgery? { false }
+        stub(@view).url_for { '' }
+      end
+
+      should "be extended by Comments::ViewHelpers module" do
+        assert_respond_to @view, :comments_for
+        assert_respond_to @view, :display_comments
+      end
+
+      context "#comments_for" do
+        should "return string when there are no comments" do
+          output = @view.comments_for('some namespace')
+          assert_instance_of String, output
+        end
+
+        should "return string when there are some comments" do
+          Comments::Manager::create_comment({ 'record_name' => '^^' })
+
+          output = @view.comments_for('^^')
+          assert_instance_of String, output
+        end
+      end
+    end
+  end
+
   context "Comments::AbstractPlugin" do
     context "AbstractPlugin::plugin_name" do
       should "raise error" do
         assert_raise RuntimeError do
           Comments::AbstractPlugin::plugin_name
+        end
+      end
+
+      context "instance" do
+        should "return no widgets" do
+          assert_equal({}, Comments::AbstractPlugin.new.widgets)
         end
       end
     end
@@ -168,6 +202,68 @@ class CommentsTest < ActiveSupport::TestCase
           'record_name' => '=) =) =)'
         )
       end
+    end
+  end
+
+  context "Comments::Manager::comments_response" do
+    should "return an instance of CommentsResponse" do
+      Comments::ViewManager::set_view(ActionView::Base.new)
+      resp = Comments::Manager::comments_response('xxxx')
+      assert_instance_of Comments::CommentsResponse, resp
+      assert_respond_to resp, :template 
+      assert_respond_to resp, :comment_template 
+      assert_respond_to resp, :assign_variables 
+      assert_respond_to resp, :comment_add_form_template
+      assert resp.assign_variables.has_key?(:record_name)
+    end
+
+    context "#check_for_not_rendered_widgets" do
+      should "check for not rendered widgets" do
+        Comments::ViewManager::set_view(ActionView::Base.new)
+        resp = Comments::Manager::comments_response('xxxx')
+
+        assert_equal [:record_name], resp.assign_variables.keys
+        assert_raise RuntimeError do
+          resp.check_for_not_rendered_widgets
+        end
+      end
+
+      should "not raise anything if all is ok" do
+        Comments::ViewManager::set_view(ActionView::Base.new)
+        resp = Comments::Manager::comments_response('xxxx')
+        assert_equal [:record_name], resp.assign_variables.keys
+        resp.get_assigned_variable(:record_name)
+
+        assert_equal [:record_name], resp.assign_variables.keys
+        assert_nothing_raised do
+          resp.check_for_not_rendered_widgets
+        end
+      end
+    end
+  end
+
+  context "Comments::ViewManager::set_view" do
+    should "change view paths" do
+      @view = ActionView::Base.new
+      old_paths = @view.view_paths.clone
+      Comments::ViewManager::set_view(@view)
+      assert_not_equal old_paths, @view.view_paths
+    end
+
+    should "not overwrite old paths" do
+      @view = ActionView::Base.new
+      @view.view_paths << 'testpath'
+      Comments::ViewManager::set_view(@view)
+      assert @view.view_paths.include?('testpath')
+    end
+  end
+
+  context "Comments::ViewManager::template" do
+    should "render to string given template" do
+      @view = ActionView::Base.new
+      Comments::ViewManager.set_view(@view)
+      out = Comments::ViewManager.template('widgets/record_name.haml')
+      assert_instance_of String, out
     end
   end
 end

@@ -1,0 +1,8 @@
+%a{ :name => :add_comment }
+%br
+- form_for :comment, :url => url_for do |f|
+  = error_messages_for :comment
+  = record_name
+  = f.text_area :content, :rows => 5
+  %br
+  = f.submit t(:post_comment)

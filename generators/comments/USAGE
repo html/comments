@@ -1,0 +1,18 @@
+Description:
+    Copies view partials to your views directory so you can customize comments look and feel
+
+Example:
+    ./script/generate comments go --c
+
+    This will create:
+        app/views/_comment.haml
+
+    ./script/generate comments go --cs
+
+    This will create:
+        app/views/_comments.haml
+
+    ./script/generate comments go --ca
+
+    This will create:
+        app/views/_comment_add_form.haml

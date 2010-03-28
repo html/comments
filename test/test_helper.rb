@@ -6,7 +6,14 @@ require 'test/unit'
 require 'shoulda'
 require 'rr'
 require 'ruby-debug'
+require 'hpricot'
 require File.dirname(__FILE__) + '/../init.rb'
+
+if defined?(ActionView)
+  require 'haml/helpers/action_view_mods'
+  require 'haml/helpers/action_view_extensions'
+  require 'haml/template'
+end
 
 ActiveRecord::Base.establish_connection(:adapter => "sqlite3", :database => ":memory:")
 old = $stdout

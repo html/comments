@@ -1,0 +1,10 @@
+.comments
+  - if items.empty?
+    = t :no_comments_message
+  - else
+    - items.each do |item|
+      = display_comment item
+      - if item != items.last
+        %hr
+.add_comment
+  = comment_add_form

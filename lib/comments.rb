@@ -1,5 +1,6 @@
 # Comments
 require 'digest/md5'
+require 'haml'
 
 module BelongsToAnything::Matchers
   def self.action_controller_matcher(obj)
@@ -35,6 +36,17 @@ module Comments
       manager(options).comments(obj)
     end
 
+    def self.comments_response(obj, options = {})
+      m = manager(options)
+
+      CommentsResponse.new(
+        :template => '/comments',
+        :comment_template => '/comment',
+        :comment_add_form_template => '/comment_add_form',
+        :assign_variables => m.assign_variables
+      )
+    end
+
     def self.manager(options)
       hash = hash4hash(options)
 
@@ -54,15 +66,25 @@ module Comments
       @@record.get_comments(@plugin_manager.search_options)
     end
 
+    def method_name
+      
+    end
+
     def self.last_record_name
       @@record && @@record.name
     end
 
     def self.create_comment(data)
         record = CommentTopic.record_for(data.delete('record_name'))
-        com = record.comments.create!(data)
+        com = record.comments.new(data)
+
+        com.save || com
       rescue 
         false
+    end
+
+    def assign_variables
+      @plugin_manager.each_plugin_collect(:widgets)
     end
   end
 
@@ -88,13 +110,7 @@ module Comments
     end
 
     def search_options
-      @search_options = {}
-
-      @plugins.each do |p|
-        @search_options.merge(p.search_options)
-      end
-
-      @search_options
+      each_plugin_collect(:search_options)
     end
 
     #Returns all plugin classes with their names
@@ -115,6 +131,58 @@ module Comments
     def self.add_plugin(plugin)
       @@plugins[plugin.plugin_name] = plugin
     end
+
+    def each_plugin &block
+      @plugins.each &block
+    end
+    
+    def each_plugin_collect(m)
+      items = {}
+
+      each_plugin do |key, plugin|
+        items.merge!(plugin.send(m))
+      end
+
+      items
+    end
+  end
+
+  class ViewManager
+    @@view = nil
+
+    def self.set_view(view)
+      views_path = Pathname.new(File.join(File.dirname(__FILE__), '../views/')).realpath.to_s
+      @@view = view
+      @@view.view_paths << views_path
+    end
+
+    def self.template(name, options = {})
+      @@view.render(:partial => name, :locals => options)
+    end
+  end
+
+  class CommentsResponse
+    def initialize(opts = {})
+      reset_called_variables
+      opts.each do |key, val|
+        self.class.send(:attr_accessor, key)
+        self.instance_variable_set("@#{key}", val)
+      end
+    end
+
+    def reset_called_variables
+      @called_variables = []
+    end
+
+    def get_assigned_variable(key)
+      @called_variables << key
+      assign_variables[key]
+    end
+
+    def check_for_not_rendered_widgets
+      not_rendered = assign_variables.keys - @called_variables
+      raise "Following widgets are not rendered: #{not_rendered.map(&:inspect).join ','}" unless not_rendered.empty?
+    end
   end
 
   class AbstractPlugin
@@ -133,8 +201,68 @@ module Comments
     def search_options
       {}
     end
+
+    def widgets
+      {}
+    end
   end
 
   module Plugins
+    class RecordName < AbstractPlugin
+      def self.initially_enabled
+        true
+      end
+
+      def self.plugin_name
+        'record_name'
+      end
+
+      def widgets
+        { :record_name => ViewManager::template('widgets/record_name', :record_name => Comments::Manager.last_record_name ) }
+      end
+    end
+  end
+
+  module ViewHelpers
+    def comments_for(item, args = {})
+      Comments::ViewManager::set_view(self)
+      
+      actually_comments = Comments::Manager::list_comments_for(item, args)
+      response = Comments::Manager::comments_response(item, args)
+      @comment_partial = response.comment_template
+      @comment_add_form_partial = response.comment_add_form_template
+      @comments_response = response
+
+      response.assign_variables.each do |key, val|
+        instance_eval <<-INSTANCE_EVAL
+          def #{key.to_s}(&block)
+            if block_given?
+              @comments_response.get_assigned_variable(#{key.inspect})
+              block.call
+            else
+              @comments_response.get_assigned_variable(#{key.inspect})
+            end
+          end
+        INSTANCE_EVAL
+      end
+
+      out = render :partial => response.template, :locals => { :items => actually_comments }
+
+      response.check_for_not_rendered_widgets
+
+      out
+    end
+
+    def display_comments(args = {})
+      comments_for(@controller, args)
+    end
+
+    def display_comment(comment)
+      render :partial => @comment_partial, :locals => { :comment => comment }
+    end
+
+    def comment_add_form
+      render :partial => @comment_add_form_partial
+    end
   end
 end

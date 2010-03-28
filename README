@@ -3,13 +3,38 @@ Comments
 
 The idea is to have "comments contructor", a set of plugins to make comments exactly that you need with configuration as simple as posible.
 Currently there are basic comments functionality without any plugin.
-All view scripts, helpers and controller extensions are currently missing in this repository.
+Controller extensions are currently missing in this repository.
 
 
 Example
 =======
 
-There is no any example yet
+In order to use this plugin you need also install "belongs_to_anything" and "hash4hash" plugins from my repositories
+
+script/generate comments migration
+rake db:migrate
+
+Put next code snippet in ApplicationController
+
+  before_filter :save_comment_if_there_is_one
+  def save_comment_if_there_is_one
+    if params[:comment]
+      result = Comments::Manager::create_comment(params[:comment])
+      redirect_to :back if result === true
+      if result
+        @comment = result
+      end
+    end
+  end
+
+If you want to have comments associated with some controller action simply put 
+<%= display_comments %> somewhere on the page. 
+
+You can also use comments with activerecord instances.
+
+@article = Article.first
+
+<%= comments_for @article %>
 
 
 Copyright (c) 2010 Olexiy Zamkoviy, released under the MIT license
