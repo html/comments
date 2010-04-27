@@ -221,6 +221,32 @@ module Comments
         { :record_name => ViewManager::template('widgets/record_name', :record_name => Comments::Manager.last_record_name ) }
       end
     end
+
+    if false
+    class Field < AbstractPlugin
+      @@name = nil
+
+      def self.initially_enabled
+        false
+      end
+
+      def self.plugin_name
+        @@name
+      end
+
+      def widgets
+        { @@name => ViewManager::template("widgets/#{@@name}") }
+      end
+    end
+
+    class ContentField < Field
+      @@name = "content_field"
+
+      def self.initially_enabled
+        true
+      end
+    end
+    end
   end
 
   module ViewHelpers
@@ -251,6 +277,10 @@ module Comments
       response.check_for_not_rendered_widgets
 
       out
+    end
+
+    def count_comments_for(item)
+      (CommentTopic::record_for(item) || CommentTopic::create_record_for(item)).comments.count
     end
 
     def display_comments(args = {})

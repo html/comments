@@ -1,6 +1,6 @@
 # Include hook code here
 require 'active_record'
-require 'actionpack'
+require 'action_pack'
 require 'belongs_to_anything'
 require 'hash4hash'
 

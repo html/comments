@@ -27,6 +27,14 @@ class CommentsTest < ActiveSupport::TestCase
           assert_instance_of String, output
         end
       end
+
+      context "#count_comments_for" do
+        should "return correct count" do
+          assert_equal 0, @view.count_comments_for('xxx')
+          Comments::CommentTopic::record_for('xxx').comments.create! :content => 'test'
+          assert_equal 1, @view.count_comments_for('xxx')
+        end
+      end
     end
   end
 
