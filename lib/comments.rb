@@ -120,12 +120,16 @@ module Comments
       Plugins.constants.each do |const|
         plugin = Plugins.const_get(const)
 
-        if plugin.respond_to?(:superclass) && plugin.superclass == AbstractPlugin
+        if plugin_superclass_is_abstract_plugin?(plugin)
           plugins[plugin.plugin_name] = plugin
         end
       end
 
       plugins.merge(@@plugins)
+    end
+
+    def self.plugin_superclass_is_abstract_plugin?(plugin)
+      plugin.respond_to?(:ancestors) && plugin.ancestors.include?(AbstractPlugin)
     end
 
     def self.add_plugin(plugin)
@@ -148,6 +152,10 @@ module Comments
   end
 
   class ViewManager
+    # Used just as static variables
+    cattr_accessor :current_comments_template
+    cattr_accessor :current_comment
+
     @@view = nil
 
     def self.set_view(view)
@@ -222,30 +230,69 @@ module Comments
       end
     end
 
-    if false
-    class Field < AbstractPlugin
-      @@name = nil
-
+    class RemoveComment < AbstractPlugin
       def self.initially_enabled
         false
       end
 
       def self.plugin_name
-        @@name
+        'remove_comment'
+      end
+
+
+      def widgets
+        { :remove_comment_link => (lambda do ViewManager::template('widgets/remove_comment_link', :comment => ViewManager.current_comment) end) }
+      end
+
+      def self.reserved_options
+        [:remove_comment_enabled]
+      end
+    end
+
+    class RemoveCommentAsSpam < AbstractPlugin
+      def self.initially_enabled
+        false
+      end
+
+      def self.plugin_name
+        'remove_comment_as_spam'
+      end
+
+      def self.reserved_options
+        [:remove_comment_as_spam_enabled]
+      end
+
+      def search_options
+        { :conditions => { :status => ['', 'possibly_spam', 'not_spam'] }}
       end
 
       def widgets
-        { @@name => ViewManager::template("widgets/#{@@name}") }
+        { :remove_comment_as_spam_link => (lambda do ViewManager::template('widgets/remove_comment_as_spam_link', :comment => ViewManager.current_comment) end) }
+      end
+    end
+
+    class Field < AbstractPlugin
+      def self.initially_enabled
+        false
+      end
+
+      def self.plugin_name
+        'field'
       end
     end
 
     class ContentField < Field
-      @@name = "content_field"
-
       def self.initially_enabled
         true
       end
-    end
+
+      def self.plugin_name
+        'content_field'
+      end
+
+      def widgets
+        { :content_field => (lambda do ViewManager::template("widgets/content_field", :comment => ViewManager.current_comment) end) }
+      end
     end
   end
 
@@ -266,7 +313,12 @@ module Comments
               @comments_response.get_assigned_variable(#{key.inspect})
               block.call
             else
-              @comments_response.get_assigned_variable(#{key.inspect})
+              var = @comments_response.get_assigned_variable(#{key.inspect})
+              if var.respond_to?(:call)
+                var.call
+              else
+                var
+              end
             end
           end
         INSTANCE_EVAL
@@ -274,25 +326,46 @@ module Comments
 
       out = render :partial => response.template, :locals => { :items => actually_comments }
 
-      response.check_for_not_rendered_widgets
+      unless actually_comments.empty?
+        response.check_for_not_rendered_widgets
+      end
 
       out
     end
 
-    def count_comments_for(item)
-      (CommentTopic::record_for(item) || CommentTopic::create_record_for(item)).comments.count
+    def count_comments_for(item, args = {})
+      Comments::Manager::list_comments_for(item, args).count
     end
 
     def display_comments(args = {})
-      comments_for(@controller, args)
+      comments_template :comments do
+        comments_for(@controller, args)
+      end
     end
 
     def display_comment(comment)
-      render :partial => @comment_partial, :locals => { :comment => comment }
+      ViewManager.current_comment = comment
+      comments_template :comment do
+        render :partial => @comment_partial, :locals => { :comment => comment }
+      end
     end
 
     def comment_add_form
-      render :partial => @comment_add_form_partial
+      comments_template :add_comment do
+        render :partial => @comment_add_form_partial
+      end
+    end
+
+    def comments_template(name, &block)
+      old_template = ViewManager.current_comments_template
+      ViewManager.current_comments_template = name
+      return_value = yield
+      ViewManager.current_comments_template = old_template
+      return_value
+    end
+
+    def current_comments_template
+      ViewManager.current_comments_template
     end
   end
 end

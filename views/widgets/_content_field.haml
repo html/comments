@@ -1,0 +1,5 @@
+- case current_comments_template
+  - when :comment then
+    = h comment.content
+  - when :add_comment then
+    = text_area :comment, :content, :rows => 5

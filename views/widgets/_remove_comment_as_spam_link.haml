@@ -1,0 +1,6 @@
+- is_possibly_spam_comment = comment.status == 'possibly_spam'
+%div{ :style => (is_possibly_spam_comment ? 'background-color:red' : '') }
+  = link_to t("remove comment as spam"), :update_comment_status => comment.id, :status => 'spam'
+  - if is_possibly_spam_comment
+    %br
+    = link_to t("mark comment as checked"), :update_comment_status => comment.id, :status => 'not_spam'

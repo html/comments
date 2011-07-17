@@ -230,7 +230,7 @@ class CommentsTest < ActiveSupport::TestCase
         Comments::ViewManager::set_view(ActionView::Base.new)
         resp = Comments::Manager::comments_response('xxxx')
 
-        assert_equal [:record_name], resp.assign_variables.keys
+        assert_equal [:record_name, :content_field], resp.assign_variables.keys
         assert_raise RuntimeError do
           resp.check_for_not_rendered_widgets
         end
@@ -239,10 +239,11 @@ class CommentsTest < ActiveSupport::TestCase
       should "not raise anything if all is ok" do
         Comments::ViewManager::set_view(ActionView::Base.new)
         resp = Comments::Manager::comments_response('xxxx')
-        assert_equal [:record_name], resp.assign_variables.keys
+        assert_equal [:record_name, :content_field], resp.assign_variables.keys
         resp.get_assigned_variable(:record_name)
+        resp.get_assigned_variable(:content_field)
 
-        assert_equal [:record_name], resp.assign_variables.keys
+        assert_equal [:record_name, :content_field], resp.assign_variables.keys
         assert_nothing_raised do
           resp.check_for_not_rendered_widgets
         end
