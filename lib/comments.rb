@@ -249,6 +249,27 @@ module Comments
       end
     end
 
+    class SimpleCaptcha < AbstractPlugin 
+      def initialize(opts = {})
+        Comments::Comment.class_eval do |cl|
+          cl.apply_simple_captcha :message => "Код captcha неправильний", :add_to_base => true
+          alias :save :save_with_captcha
+        end
+      end
+
+      def widgets
+        { :simple_captcha => ViewManager::template('widgets/simple_captcha') }
+      end
+
+      def self.plugin_name
+        'simple_captcha'
+      end
+
+      def self.initially_enabled
+        defined?(::SimpleCaptcha)
+      end
+    end
+
     class RemoveCommentAsSpam < AbstractPlugin
       def self.initially_enabled
         false
